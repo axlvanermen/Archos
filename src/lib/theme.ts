@@ -1,4 +1,4 @@
-export function applyTheme(primary: string, secondary: string, accent: string = '#F97316') {
+export function applyTheme(primary: string, secondary: string, accent: string = '#C4943A') {
   const root = document.documentElement
   root.style.setProperty('--color-primary', primary)
   root.style.setProperty('--color-secondary', secondary)
@@ -6,5 +6,5 @@ export function applyTheme(primary: string, secondary: string, accent: string = 
 }
 
 export function resetTheme() {
-  applyTheme('#0F172A', '#334155', '#F97316')
+  applyTheme('#0F172A', '#334155', '#C4943A')
 }
