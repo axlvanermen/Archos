@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { Search, Plus, SlidersHorizontal } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { StatusBadge } from '@/components/ui/StatusBadge'
+import { NewProjectModal } from './NewProjectModal'
 import { formatCurrency, formatDate } from '@/lib/utils'
 
 type Status = 'aanvraag' | 'offerte_opmaak' | 'offerte_verstuurd' | 'gewonnen' | 'in_uitvoering' | 'oplevering' | 'gefactureerd' | 'afgerond' | 'verloren'
@@ -47,6 +48,7 @@ export default function ProjectsPage() {
   const navigate = useNavigate()
   const [search, setSearch] = useState('')
   const [activeFilter, setActiveFilter] = useState<Status | 'alle'>('alle')
+  const [showNewModal, setShowNewModal] = useState(false)
 
   const filtered = mockProjects.filter((p) => {
     const matchesSearch = p.name.toLowerCase().includes(search.toLowerCase()) || p.client.toLowerCase().includes(search.toLowerCase()) || p.number.includes(search)
@@ -63,7 +65,7 @@ export default function ProjectsPage() {
           <span className="px-2.5 py-0.5 bg-slate-100 text-slate-600 text-sm font-semibold rounded-full">{filtered.length}</span>
         </div>
         <button
-          onClick={() => navigate('/projecten/nieuw')}
+          onClick={() => setShowNewModal(true)}
           className="flex items-center gap-2 px-4 py-2.5 bg-[#0F172A] text-white text-sm font-semibold rounded-xl hover:bg-slate-800 transition-colors cursor-pointer"
         >
           <Plus size={16} /> Nieuw project
@@ -165,6 +167,8 @@ export default function ProjectsPage() {
           <p className="text-sm mt-1">Pas uw zoekopdracht of filters aan</p>
         </div>
       )}
+
+      <NewProjectModal isOpen={showNewModal} onClose={() => setShowNewModal(false)} />
     </div>
   )
 }
