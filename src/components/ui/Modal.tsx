@@ -1,4 +1,5 @@
 import React, { useEffect, useRef } from 'react'
+import ReactDOM from 'react-dom'
 import { AnimatePresence, motion } from 'framer-motion'
 import { X } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -44,7 +45,7 @@ export function Modal({ isOpen, onClose, title, children, footer, size = 'md', c
     }
   }, [isOpen])
 
-  return (
+  const content = (
     <AnimatePresence>
       {isOpen && (
         <div
@@ -112,4 +113,6 @@ export function Modal({ isOpen, onClose, title, children, footer, size = 'md', c
       )}
     </AnimatePresence>
   )
+
+  return ReactDOM.createPortal(content, document.body)
 }
