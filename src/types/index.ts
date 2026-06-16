@@ -109,6 +109,9 @@ export interface Subcontractor {
   country: string
   hourly_rate: number | null
   rating: number | null
+  vca_expiry_date: string | null
+  rsz_attestation_expiry_date: string | null
+  insurance_expiry_date: string | null
   notes: string | null
   created_at: string
   updated_at: string

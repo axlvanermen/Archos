@@ -11,6 +11,10 @@ import OnboardingPage from '@/pages/onboarding/OnboardingPage'
 import DashboardPage from '@/pages/dashboard/DashboardPage'
 import ProjectsPage from '@/pages/projects/ProjectsPage'
 import ProjectDetailPage from '@/pages/projects/ProjectDetailPage'
+import ClientsPage from '@/pages/clients/ClientsPage'
+import ClientDetailPage from '@/pages/clients/ClientDetailPage'
+import SubcontractorsPage from '@/pages/subcontractors/SubcontractorsPage'
+import SubcontractorDetailPage from '@/pages/subcontractors/SubcontractorDetailPage'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -39,10 +43,12 @@ function AppRoutes() {
       <Route path="/dashboard" element={<AppShell><DashboardPage /></AppShell>} />
       <Route path="/projecten" element={<AppShell><ProjectsPage /></AppShell>} />
       <Route path="/projecten/:id" element={<AppShell><ProjectDetailPage /></AppShell>} />
+      <Route path="/klanten" element={<AppShell><ClientsPage /></AppShell>} />
+      <Route path="/klanten/:id" element={<AppShell><ClientDetailPage /></AppShell>} />
+      <Route path="/onderaannemers" element={<AppShell><SubcontractorsPage /></AppShell>} />
+      <Route path="/onderaannemers/:id" element={<AppShell><SubcontractorDetailPage /></AppShell>} />
 
       {/* Placeholder routes */}
-      <Route path="/klanten" element={<AppShell><div className="p-8 text-slate-500">Klanten — binnenkort beschikbaar</div></AppShell>} />
-      <Route path="/onderaannemers" element={<AppShell><div className="p-8 text-slate-500">Onderaannemers — binnenkort beschikbaar</div></AppShell>} />
       <Route path="/planning" element={<AppShell><div className="p-8 text-slate-500">Planning — binnenkort beschikbaar</div></AppShell>} />
       <Route path="/taken" element={<AppShell><div className="p-8 text-slate-500">Taken — binnenkort beschikbaar</div></AppShell>} />
       <Route path="/rapporten" element={<AppShell><div className="p-8 text-slate-500">Rapporten — binnenkort beschikbaar</div></AppShell>} />
