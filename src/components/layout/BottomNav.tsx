@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { LayoutDashboard, FolderKanban, CheckSquare, Calendar, Menu, X, Building2, HardHat, BarChart2, Settings, LogOut } from 'lucide-react'
+import { LayoutDashboard, FolderKanban, CheckSquare, Calendar, Menu, X, Building2, HardHat, FileSignature, BarChart2, Settings, LogOut } from 'lucide-react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { cn } from '@/lib/utils'
 
@@ -14,6 +14,7 @@ const primaryItems = [
 const menuItems = [
   { label: 'Klanten', icon: Building2, to: '/klanten' },
   { label: 'Onderaannemers', icon: HardHat, to: '/onderaannemers' },
+  { label: 'Contracten', icon: FileSignature, to: '/contracten' },
   { label: 'Rapporten', icon: BarChart2, to: '/rapporten' },
   { label: 'Instellingen', icon: Settings, to: '/instellingen' },
 ]
