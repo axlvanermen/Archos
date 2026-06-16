@@ -22,6 +22,9 @@ import TasksPage from '@/pages/tasks/TasksPage'
 import PlanningPage from '@/pages/planning/PlanningPage'
 import ReportsPage from '@/pages/reports/ReportsPage'
 import SettingsPage from '@/pages/settings/SettingsPage'
+import InvoicesPage from '@/pages/invoices/InvoicesPage'
+import InvoiceFormPage from '@/pages/invoices/InvoiceFormPage'
+import InvoiceDetailPage from '@/pages/invoices/InvoiceDetailPage'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -57,6 +60,9 @@ function AppRoutes() {
       <Route path="/contracten" element={<AppShell><ContractsPage /></AppShell>} />
       <Route path="/contracten/nieuw" element={<AppShell><ContractWizardPage /></AppShell>} />
       <Route path="/contracten/:id" element={<AppShell><ContractDetailPage /></AppShell>} />
+      <Route path="/facturen" element={<AppShell><InvoicesPage /></AppShell>} />
+      <Route path="/facturen/nieuw" element={<AppShell><InvoiceFormPage /></AppShell>} />
+      <Route path="/facturen/:id" element={<AppShell><InvoiceDetailPage /></AppShell>} />
 
       {/* Placeholder routes */}
       <Route path="/planning" element={<AppShell><PlanningPage /></AppShell>} />
