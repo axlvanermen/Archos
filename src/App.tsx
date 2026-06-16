@@ -18,6 +18,7 @@ import SubcontractorDetailPage from '@/pages/subcontractors/SubcontractorDetailP
 import ContractsPage from '@/pages/contracts/ContractsPage'
 import ContractWizardPage from '@/pages/contracts/ContractWizardPage'
 import ContractDetailPage from '@/pages/contracts/ContractDetailPage'
+import TasksPage from '@/pages/tasks/TasksPage'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -56,7 +57,7 @@ function AppRoutes() {
 
       {/* Placeholder routes */}
       <Route path="/planning" element={<AppShell><div className="p-8 text-slate-500">Planning — binnenkort beschikbaar</div></AppShell>} />
-      <Route path="/taken" element={<AppShell><div className="p-8 text-slate-500">Taken — binnenkort beschikbaar</div></AppShell>} />
+      <Route path="/taken" element={<AppShell><TasksPage /></AppShell>} />
       <Route path="/rapporten" element={<AppShell><div className="p-8 text-slate-500">Rapporten — binnenkort beschikbaar</div></AppShell>} />
       <Route path="/instellingen" element={<AppShell><div className="p-8 text-slate-500">Instellingen — binnenkort beschikbaar</div></AppShell>} />
 
