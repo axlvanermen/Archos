@@ -1,15 +1,15 @@
 // ─── Enums ───────────────────────────────────────────────────────────────────
 
 export enum ProjectStatus {
-  Prospectie = 'prospectie',
-  Offerte = 'offerte',
-  InAfwachting = 'in_afwachting',
-  Goedgekeurd = 'goedgekeurd',
+  Aanvraag = 'aanvraag',
+  OfferteOpmaak = 'offerte_opmaak',
+  OfferteVerstuurd = 'offerte_verstuurd',
+  Gewonnen = 'gewonnen',
   InUitvoering = 'in_uitvoering',
   Oplevering = 'oplevering',
-  Voltooid = 'voltooid',
   Gefactureerd = 'gefactureerd',
-  Geannuleerd = 'geannuleerd',
+  Afgerond = 'afgerond',
+  Verloren = 'verloren',
 }
 
 export enum UserRole {

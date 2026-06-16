@@ -17,9 +17,11 @@ create type user_role as enum (
   'owner', 'admin', 'project_manager', 'foreman', 'worker', 'accountant'
 );
 
+-- Matches StatusBadge.tsx / ProjectStatus in src/types/index.ts exactly —
+-- the UI's status vocabulary is the source of truth here.
 create type project_status as enum (
-  'prospectie', 'offerte', 'in_afwachting', 'goedgekeurd',
-  'in_uitvoering', 'oplevering', 'voltooid', 'gefactureerd', 'geannuleerd'
+  'aanvraag', 'offerte_opmaak', 'offerte_verstuurd', 'gewonnen',
+  'in_uitvoering', 'oplevering', 'gefactureerd', 'afgerond', 'verloren'
 );
 
 create type quote_status as enum ('draft', 'sent', 'accepted', 'rejected', 'expired');
@@ -187,7 +189,7 @@ create table projects (
   name text not null,
   reference text,
   description text,
-  status project_status not null default 'prospectie',
+  status project_status not null default 'aanvraag',
   address text,
   city text,
   postal_code text,
