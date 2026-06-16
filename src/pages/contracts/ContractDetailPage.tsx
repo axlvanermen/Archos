@@ -3,18 +3,39 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { ArrowLeft, Edit, Download, Check } from 'lucide-react'
 import { formatCurrency, formatDate } from '@/lib/utils'
 import { ContractStatusBadge } from './contractStatus'
-import { mockContracts, getProjectById, getClientById, mockContractorCompany } from './mockContractData'
+import { mockContractorCompany, defaultClauses } from './mockContractData'
 import { ContractPdfDocument } from './ContractPdfDocument'
 import { pdf } from '@react-pdf/renderer'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { FileSignature } from 'lucide-react'
+import { useContract } from '@/hooks/useContracts'
+import { SkeletonCard } from '@/components/ui/LoadingSkeleton'
 
 export default function ContractDetailPage() {
   const { id } = useParams()
   const navigate = useNavigate()
   const [downloading, setDownloading] = useState(false)
 
-  const contract = mockContracts.find((c) => c.id === id)
+  const { data: contract, isLoading, error } = useContract(id)
+
+  if (isLoading) {
+    return (
+      <div className="px-4 sm:px-6 lg:px-8 py-8 max-w-7xl mx-auto">
+        <SkeletonCard />
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="px-4 sm:px-6 lg:px-8 py-8 max-w-7xl mx-auto">
+        <div className="text-center py-16 text-red-500">
+          <p className="text-sm font-medium">Er ging iets mis bij het laden van dit contract.</p>
+          <p className="text-xs mt-1 text-red-400">{error instanceof Error ? error.message : String(error)}</p>
+        </div>
+      </div>
+    )
+  }
 
   if (!contract) {
     return (
@@ -29,19 +50,22 @@ export default function ContractDetailPage() {
     )
   }
 
-  const project = getProjectById(contract.projectId)
-  const client = getClientById(contract.clientId)
-  const selectedClauses = contract.clauses.filter((c) => c.selected)
+  const project = contract.project
+  const client = contract.client
+  // Clauses aren't persisted as structured data on the Contract record (no
+  // `clauses` column), so for the detail view / PDF regeneration we fall back
+  // to the default clause set defined in mockContractData.ts.
+  const selectedClauses = defaultClauses.filter((c) => c.selected)
 
   const fields = [
     { label: 'Referentie', value: contract.reference },
     { label: 'Project', value: project?.name ?? '—' },
     { label: 'Opdrachtgever', value: client?.name ?? '—' },
-    { label: 'Aannemingssom', value: formatCurrency(contract.contractValue) },
-    { label: 'Betalingsvoorwaarden', value: contract.paymentTerms },
-    { label: 'Startdatum', value: formatDate(contract.startDate) },
-    { label: 'Einddatum', value: formatDate(contract.endDate) },
-    { label: 'Ondertekend op', value: contract.signDate ? formatDate(contract.signDate) : 'Nog niet ondertekend' },
+    { label: 'Aannemingssom', value: formatCurrency(contract.contract_value) },
+    { label: 'Betalingsvoorwaarden', value: contract.payment_terms ?? '—' },
+    { label: 'Startdatum', value: contract.start_date ? formatDate(contract.start_date) : '—' },
+    { label: 'Einddatum', value: contract.end_date ? formatDate(contract.end_date) : '—' },
+    { label: 'Ondertekend op', value: contract.sign_date ? formatDate(contract.sign_date) : 'Nog niet ondertekend' },
   ]
 
   const handleDownload = async () => {
@@ -52,16 +76,16 @@ export default function ContractDetailPage() {
           data={{
             reference: contract.reference,
             title: contract.title,
-            description: contract.description,
-            contractValue: contract.contractValue,
-            paymentTerms: contract.paymentTerms,
-            startDate: contract.startDate,
-            endDate: contract.endDate,
-            signDate: contract.signDate ?? undefined,
+            description: contract.description ?? '',
+            contractValue: contract.contract_value,
+            paymentTerms: contract.payment_terms ?? '',
+            startDate: contract.start_date ?? '',
+            endDate: contract.end_date ?? '',
+            signDate: contract.sign_date ?? undefined,
             contractor: mockContractorCompany,
-            client: client ? { name: client.name, vatNumber: client.vatNumber, address: client.address } : { name: '—', vatNumber: null, address: '—' },
-            project: project ? { name: project.name, address: project.address } : { name: '—', address: '—' },
-            clauses: contract.clauses,
+            client: client ? { name: client.name, vatNumber: client.vat_number, address: client.address ?? '—' } : { name: '—', vatNumber: null, address: '—' },
+            project: project ? { name: project.name, address: project.address ?? '—' } : { name: '—', address: '—' },
+            clauses: defaultClauses,
           }}
         />,
       ).toBlob()
@@ -124,7 +148,7 @@ export default function ContractDetailPage() {
 
         <div className="md:col-span-2 bg-white rounded-2xl border border-slate-100 p-6 shadow-sm">
           <h3 className="font-semibold text-[#0F172A] mb-2">Omschrijving werken</h3>
-          <p className="text-sm text-slate-600 leading-relaxed">{contract.description}</p>
+          <p className="text-sm text-slate-600 leading-relaxed">{contract.description ?? '—'}</p>
         </div>
 
         <div className="md:col-span-2 bg-white rounded-2xl border border-slate-100 p-6 shadow-sm">

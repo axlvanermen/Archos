@@ -1,44 +1,30 @@
 import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
+import { useQuery } from '@tanstack/react-query'
 import { ArrowLeft, Edit, User, FolderKanban } from 'lucide-react'
-import { StatusBadge } from '@/components/ui/StatusBadge'
+import { StatusBadge, type Status } from '@/components/ui/StatusBadge'
 import { EmptyState } from '@/components/ui/EmptyState'
+import { SkeletonCard } from '@/components/ui/LoadingSkeleton'
 import { formatCurrency, formatDate } from '@/lib/utils'
-
-const mockClient = {
-  id: '1',
-  name: 'Familie De Groote',
-  vat_number: null as string | null,
-  contact_person: 'Jan De Groote',
-  email: 'jan.degroote@gmail.com',
-  phone: '0470 12 34 56',
-  address: 'Zeedijk 145',
-  city: 'Knokke-Heist',
-  postal_code: '8300',
-  country: 'België',
-  notes: 'Voorkeur voor communicatie via e-mail. Beschikbaar voor werfbezoeken op woensdagnamiddag.',
-}
-
-const mockClientProjects = [
-  { id: '1', number: '2025-001', name: 'Villa Knokke', status: 'oplevering' as const, budget: 380000, startDate: '2025-01-10', endDate: '2025-06-30' },
-]
+import { useClient } from '@/hooks/useClients'
+import { supabase } from '@/lib/supabase'
+import type { Client, Project } from '@/types'
 
 const tabs = [
   { id: 'algemeen', label: 'Algemeen', icon: User },
   { id: 'projecten', label: 'Projecten', icon: FolderKanban },
 ]
 
-function AlgemeenTab() {
-  const c = mockClient
+function AlgemeenTab({ client }: { client: Client }) {
   const fields = [
-    { label: 'Naam', value: c.name },
-    { label: 'BTW-nummer', value: c.vat_number ?? '—' },
-    { label: 'Contactpersoon', value: c.contact_person ?? '—' },
-    { label: 'E-mailadres', value: c.email ?? '—' },
-    { label: 'Telefoonnummer', value: c.phone ?? '—' },
-    { label: 'Adres', value: c.address ?? '—' },
-    { label: 'Stad', value: c.city ? `${c.postal_code} ${c.city}` : '—' },
-    { label: 'Land', value: c.country },
+    { label: 'Naam', value: client.name },
+    { label: 'BTW-nummer', value: client.vat_number ?? '—' },
+    { label: 'Contactpersoon', value: client.contact_person ?? '—' },
+    { label: 'E-mailadres', value: client.email ?? '—' },
+    { label: 'Telefoonnummer', value: client.phone ?? '—' },
+    { label: 'Adres', value: client.address ?? '—' },
+    { label: 'Stad', value: client.city ? `${client.postal_code ?? ''} ${client.city}`.trim() : '—' },
+    { label: 'Land', value: client.country },
   ]
 
   return (
@@ -54,20 +40,46 @@ function AlgemeenTab() {
           ))}
         </dl>
       </div>
-      {c.notes && (
+      {client.notes && (
         <div className="md:col-span-2 bg-amber-50 border border-amber-100 rounded-2xl p-5">
           <h3 className="text-xs font-semibold text-amber-700 uppercase tracking-wide mb-1.5">Interne notities</h3>
-          <p className="text-sm text-amber-800">{c.notes}</p>
+          <p className="text-sm text-amber-800">{client.notes}</p>
         </div>
       )}
     </div>
   )
 }
 
-function ProjectenTab() {
+function ProjectenTab({ clientId }: { clientId: string }) {
   const navigate = useNavigate()
+  const { data: projects, isLoading, error } = useQuery({
+    queryKey: ['client-projects', clientId],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('projects').select('*').eq('client_id', clientId)
+      if (error) throw error
+      return data as Project[]
+    },
+    enabled: !!clientId,
+  })
 
-  if (mockClientProjects.length === 0) {
+  if (isLoading) {
+    return (
+      <div className="space-y-3">
+        <SkeletonCard />
+        <SkeletonCard />
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="px-4 py-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
+        Er ging iets mis bij het laden van de projecten: {error.message}
+      </div>
+    )
+  }
+
+  if (!projects || projects.length === 0) {
     return (
       <EmptyState
         icon={<FolderKanban size={28} />}
@@ -79,7 +91,7 @@ function ProjectenTab() {
 
   return (
     <div className="bg-white rounded-2xl border border-slate-100 shadow-sm divide-y divide-slate-50">
-      {mockClientProjects.map((p) => (
+      {projects.map((p) => (
         <div
           key={p.id}
           onClick={() => navigate(`/projecten/${p.id}`)}
@@ -88,11 +100,13 @@ function ProjectenTab() {
           <div className="min-w-0">
             <div className="flex items-center gap-2 mb-0.5">
               <h4 className="font-semibold text-[#0F172A] truncate">{p.name}</h4>
-              <StatusBadge status={p.status} />
+              <StatusBadge status={p.status as Status} />
             </div>
-            <p className="text-xs text-slate-400 font-mono">{p.number} · {formatDate(p.startDate)} → {formatDate(p.endDate)}</p>
+            <p className="text-xs text-slate-400 font-mono">
+              {p.reference ?? '—'} · {p.start_date ? formatDate(p.start_date) : '—'} → {p.end_date ? formatDate(p.end_date) : '—'}
+            </p>
           </div>
-          <span className="flex-shrink-0 text-sm font-semibold text-[#0F172A]">{formatCurrency(p.budget)}</span>
+          <span className="flex-shrink-0 text-sm font-semibold text-[#0F172A]">{formatCurrency(p.budget ?? 0)}</span>
         </div>
       ))}
     </div>
@@ -103,8 +117,7 @@ export default function ClientDetailPage() {
   const { id } = useParams()
   const navigate = useNavigate()
   const [activeTab, setActiveTab] = useState('algemeen')
-
-  void id
+  const { data: client, isLoading, error } = useClient(id)
 
   return (
     <div className="px-4 sm:px-6 lg:px-8 py-8 max-w-7xl mx-auto">
@@ -117,35 +130,47 @@ export default function ClientDetailPage() {
           <ArrowLeft size={18} />
         </button>
         <div className="flex-1 min-w-0">
-          <h1 className="text-2xl font-bold text-[#0F172A] mb-1">{mockClient.name}</h1>
-          <p className="text-sm text-slate-400">{mockClient.contact_person ?? mockClient.email ?? '—'}</p>
+          <h1 className="text-2xl font-bold text-[#0F172A] mb-1">{client?.name ?? (isLoading ? 'Laden…' : 'Klant')}</h1>
+          <p className="text-sm text-slate-400">{client?.contact_person ?? client?.email ?? '—'}</p>
         </div>
         <button className="flex-shrink-0 flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer">
           <Edit size={15} /> Bewerken
         </button>
       </div>
 
-      {/* Tabs */}
-      <div className="flex gap-1 border-b border-slate-100 mb-6 overflow-x-auto scrollbar-none">
-        {tabs.map((tab) => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
-            className={`flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium whitespace-nowrap border-b-2 transition-colors cursor-pointer -mb-px ${
-              activeTab === tab.id
-                ? 'border-[#C4943A] text-[#C4943A]'
-                : 'border-transparent text-slate-500 hover:text-[#0F172A]'
-            }`}
-          >
-            <tab.icon size={15} />
-            {tab.label}
-          </button>
-        ))}
-      </div>
+      {isLoading && <SkeletonCard />}
 
-      {/* Tab content */}
-      {activeTab === 'algemeen' && <AlgemeenTab />}
-      {activeTab === 'projecten' && <ProjectenTab />}
+      {error && (
+        <div className="px-4 py-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
+          Er ging iets mis bij het laden van de klant: {error.message}
+        </div>
+      )}
+
+      {!isLoading && !error && client && (
+        <>
+          {/* Tabs */}
+          <div className="flex gap-1 border-b border-slate-100 mb-6 overflow-x-auto scrollbar-none">
+            {tabs.map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium whitespace-nowrap border-b-2 transition-colors cursor-pointer -mb-px ${
+                  activeTab === tab.id
+                    ? 'border-[#C4943A] text-[#C4943A]'
+                    : 'border-transparent text-slate-500 hover:text-[#0F172A]'
+                }`}
+              >
+                <tab.icon size={15} />
+                {tab.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Tab content */}
+          {activeTab === 'algemeen' && <AlgemeenTab client={client} />}
+          {activeTab === 'projecten' && <ProjectenTab clientId={client.id} />}
+        </>
+      )}
     </div>
   )
 }

@@ -1,37 +1,19 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Search, Plus, Mail, Phone, MapPin, Building2 } from 'lucide-react'
+import { Search, Plus, Mail, Phone, MapPin, Users } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { NewClientModal } from './NewClientModal'
-
-interface ClientListItem {
-  id: string
-  name: string
-  vat_number: string | null
-  contact_person: string | null
-  email: string | null
-  phone: string | null
-  city: string | null
-  projectCount: number
-}
-
-const mockClients: ClientListItem[] = [
-  { id: '1', name: 'Familie De Groote', vat_number: null, contact_person: 'Jan De Groote', email: 'jan.degroote@gmail.com', phone: '0470 12 34 56', city: 'Knokke-Heist', projectCount: 1 },
-  { id: '2', name: 'Immo Invest NV', vat_number: 'BE0456789123', contact_person: 'Sarah Vermeulen', email: 'info@immoinvest.be', phone: '011 22 33 44', city: 'Hasselt', projectCount: 2 },
-  { id: '3', name: 'Stad Gent', vat_number: 'BE0207451227', contact_person: 'Dienst Gebouwen', email: 'gebouwen@stad.gent', phone: '09 266 77 77', city: 'Gent', projectCount: 1 },
-  { id: '4', name: 'Dhr. Bogaert', vat_number: null, contact_person: 'Marc Bogaert', email: 'marc.bogaert@telenet.be', phone: '0478 98 76 54', city: 'Leuven', projectCount: 1 },
-  { id: '5', name: 'Brugge Invest', vat_number: 'BE0890123456', contact_person: 'Els Vandamme', email: 'els@bruggeinvest.be', phone: '050 33 22 11', city: 'Brugge', projectCount: 1 },
-  { id: '6', name: 'Logistiek BV', vat_number: 'BE0678912345', contact_person: 'Peter Claes', email: 'peter@logistiekbv.be', phone: '03 456 78 90', city: 'Antwerpen', projectCount: 1 },
-  { id: '7', name: 'Gemeente Mechelen', vat_number: 'BE0207537032', contact_person: 'Dienst Patrimonium', email: 'patrimonium@mechelen.be', phone: '015 29 70 00', city: 'Mechelen', projectCount: 1 },
-  { id: '8', name: 'Familie Willems', vat_number: null, contact_person: 'Lieve Willems', email: 'lieve.willems@outlook.com', phone: '0494 11 22 33', city: 'Bastogne', projectCount: 1 },
-]
+import { useClients } from '@/hooks/useClients'
+import { SkeletonCard } from '@/components/ui/LoadingSkeleton'
+import { EmptyState } from '@/components/ui/EmptyState'
 
 export default function ClientsPage() {
   const navigate = useNavigate()
   const [search, setSearch] = useState('')
   const [showNewModal, setShowNewModal] = useState(false)
+  const { data: clients, isLoading, error } = useClients()
 
-  const filtered = mockClients.filter((c) => {
+  const filtered = (clients ?? []).filter((c) => {
     const q = search.toLowerCase()
     return (
       c.name.toLowerCase().includes(q) ||
@@ -70,62 +52,77 @@ export default function ClientsPage() {
         </div>
       </div>
 
-      {/* Grid */}
-      <motion.div
-        className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4"
-        initial="hidden"
-        animate="show"
-        variants={{ hidden: {}, show: { transition: { staggerChildren: 0.06 } } }}
-      >
-        {filtered.map((client) => (
-          <motion.div
-            key={client.id}
-            variants={{ hidden: { opacity: 0, y: 12 }, show: { opacity: 1, y: 0, transition: { duration: 0.3 } } }}
-            onClick={() => navigate(`/klanten/${client.id}`)}
-            className="bg-white border border-slate-100 rounded-2xl p-5 shadow-sm hover:shadow-md hover:border-slate-200 transition-all cursor-pointer group"
-          >
-            <div className="flex items-start justify-between gap-2 mb-3">
-              <div className="min-w-0">
-                <h3 className="font-semibold text-[#0F172A] truncate group-hover:text-[#C4943A] transition-colors">{client.name}</h3>
-                {client.vat_number && <p className="text-xs text-slate-400 font-mono mt-0.5">{client.vat_number}</p>}
-              </div>
-              <span className="flex-shrink-0 flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-slate-50 text-slate-600 border border-slate-200">
-                <Building2 size={12} />
-                {client.projectCount} {client.projectCount === 1 ? 'project' : 'projecten'}
-              </span>
-            </div>
-
-            {client.contact_person && <p className="text-sm text-slate-600 mb-3 truncate">{client.contact_person}</p>}
-
-            <div className="space-y-1.5 pt-3 border-t border-slate-50">
-              {client.city && (
-                <div className="flex items-center gap-2 text-xs text-slate-500">
-                  <MapPin size={13} className="text-slate-400 flex-shrink-0" />
-                  <span className="truncate">{client.city}</span>
-                </div>
-              )}
-              {client.email && (
-                <div className="flex items-center gap-2 text-xs text-slate-500">
-                  <Mail size={13} className="text-slate-400 flex-shrink-0" />
-                  <span className="truncate">{client.email}</span>
-                </div>
-              )}
-              {client.phone && (
-                <div className="flex items-center gap-2 text-xs text-slate-500">
-                  <Phone size={13} className="text-slate-400 flex-shrink-0" />
-                  <span className="truncate">{client.phone}</span>
-                </div>
-              )}
-            </div>
-          </motion.div>
-        ))}
-      </motion.div>
-
-      {filtered.length === 0 && (
-        <div className="text-center py-16 text-slate-400">
-          <p className="text-lg font-medium">Geen klanten gevonden</p>
-          <p className="text-sm mt-1">Pas uw zoekopdracht aan</p>
+      {error && (
+        <div className="mb-6 px-4 py-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
+          Er ging iets mis bij het laden van de klanten: {error.message}
         </div>
+      )}
+
+      {isLoading && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <SkeletonCard key={i} />
+          ))}
+        </div>
+      )}
+
+      {!isLoading && !error && (
+        <>
+          {/* Grid */}
+          <motion.div
+            className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4"
+            initial="hidden"
+            animate="show"
+            variants={{ hidden: {}, show: { transition: { staggerChildren: 0.06 } } }}
+          >
+            {filtered.map((client) => (
+              <motion.div
+                key={client.id}
+                variants={{ hidden: { opacity: 0, y: 12 }, show: { opacity: 1, y: 0, transition: { duration: 0.3 } } }}
+                onClick={() => navigate(`/klanten/${client.id}`)}
+                className="bg-white border border-slate-100 rounded-2xl p-5 shadow-sm hover:shadow-md hover:border-slate-200 transition-all cursor-pointer group"
+              >
+                <div className="flex items-start justify-between gap-2 mb-3">
+                  <div className="min-w-0">
+                    <h3 className="font-semibold text-[#0F172A] truncate group-hover:text-[#C4943A] transition-colors">{client.name}</h3>
+                    {client.vat_number && <p className="text-xs text-slate-400 font-mono mt-0.5">{client.vat_number}</p>}
+                  </div>
+                </div>
+
+                {client.contact_person && <p className="text-sm text-slate-600 mb-3 truncate">{client.contact_person}</p>}
+
+                <div className="space-y-1.5 pt-3 border-t border-slate-50">
+                  {client.city && (
+                    <div className="flex items-center gap-2 text-xs text-slate-500">
+                      <MapPin size={13} className="text-slate-400 flex-shrink-0" />
+                      <span className="truncate">{client.city}</span>
+                    </div>
+                  )}
+                  {client.email && (
+                    <div className="flex items-center gap-2 text-xs text-slate-500">
+                      <Mail size={13} className="text-slate-400 flex-shrink-0" />
+                      <span className="truncate">{client.email}</span>
+                    </div>
+                  )}
+                  {client.phone && (
+                    <div className="flex items-center gap-2 text-xs text-slate-500">
+                      <Phone size={13} className="text-slate-400 flex-shrink-0" />
+                      <span className="truncate">{client.phone}</span>
+                    </div>
+                  )}
+                </div>
+              </motion.div>
+            ))}
+          </motion.div>
+
+          {filtered.length === 0 && (
+            <EmptyState
+              icon={<Users size={28} />}
+              title="Geen klanten gevonden"
+              description={search ? 'Pas uw zoekopdracht aan.' : 'Voeg uw eerste klant toe om te starten.'}
+            />
+          )}
+        </>
       )}
 
       <NewClientModal isOpen={showNewModal} onClose={() => setShowNewModal(false)} />

@@ -1,38 +1,13 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Search, Plus, SlidersHorizontal } from 'lucide-react'
+import { Search, Plus, SlidersHorizontal, FolderKanban } from 'lucide-react'
 import { motion } from 'framer-motion'
-import { StatusBadge } from '@/components/ui/StatusBadge'
+import { StatusBadge, type Status } from '@/components/ui/StatusBadge'
+import { SkeletonCard } from '@/components/ui/LoadingSkeleton'
+import { EmptyState } from '@/components/ui/EmptyState'
 import { NewProjectModal } from './NewProjectModal'
-import { formatCurrency, formatDate } from '@/lib/utils'
-
-type Status = 'aanvraag' | 'offerte_opmaak' | 'offerte_verstuurd' | 'gewonnen' | 'in_uitvoering' | 'oplevering' | 'gefactureerd' | 'afgerond' | 'verloren'
-
-interface Project {
-  id: string
-  number: string
-  name: string
-  client: string
-  status: Status
-  startDate: string
-  endDate: string
-  budget: number
-  invoiced: number
-  manager: string
-  managerInitials: string
-  managerColor: string
-}
-
-const mockProjects: Project[] = [
-  { id: '1', number: '2025-001', name: 'Villa Knokke', client: 'Familie De Groote', status: 'oplevering', startDate: '2025-01-10', endDate: '2025-06-30', budget: 380000, invoiced: 320000, manager: 'Jan Peeters', managerInitials: 'JP', managerColor: 'bg-blue-500' },
-  { id: '2', number: '2025-002', name: 'Kantoorgebouw Hasselt', client: 'Immo Invest NV', status: 'in_uitvoering', startDate: '2025-02-01', endDate: '2025-12-15', budget: 1250000, invoiced: 480000, manager: 'Sarah Claes', managerInitials: 'SC', managerColor: 'bg-purple-500' },
-  { id: '3', number: '2025-003', name: 'Appartement Gent', client: 'Stad Gent', status: 'gewonnen', startDate: '2025-04-01', endDate: '2025-10-31', budget: 620000, invoiced: 0, manager: 'Tom Martens', managerInitials: 'TM', managerColor: 'bg-emerald-500' },
-  { id: '4', number: '2025-004', name: 'Woning Leuven', client: 'Dhr. Bogaert', status: 'offerte_verstuurd', startDate: '2025-06-15', endDate: '2025-11-30', budget: 285000, invoiced: 0, manager: 'Pieter VDB', managerInitials: 'PV', managerColor: 'bg-amber-500' },
-  { id: '5', number: '2025-005', name: 'Residentie Brugge', client: 'Brugge Invest', status: 'gefactureerd', startDate: '2024-09-01', endDate: '2025-03-31', budget: 890000, invoiced: 890000, manager: 'Lisa Bogaert', managerInitials: 'LB', managerColor: 'bg-rose-500' },
-  { id: '6', number: '2025-006', name: 'Magazijn Antwerpen', client: 'Logistiek BV', status: 'offerte_opmaak', startDate: '2025-07-01', endDate: '2025-09-30', budget: 145000, invoiced: 0, manager: 'Jan Peeters', managerInitials: 'JP', managerColor: 'bg-blue-500' },
-  { id: '7', number: '2024-018', name: 'Schoolgebouw Mechelen', client: 'Gemeente Mechelen', status: 'afgerond', startDate: '2024-03-01', endDate: '2024-12-20', budget: 2100000, invoiced: 2100000, manager: 'Sarah Claes', managerInitials: 'SC', managerColor: 'bg-purple-500' },
-  { id: '8', number: '2025-007', name: 'Chalet Ardennen', client: 'Familie Willems', status: 'aanvraag', startDate: '2025-08-01', endDate: '2026-02-28', budget: 175000, invoiced: 0, manager: 'Tom Martens', managerInitials: 'TM', managerColor: 'bg-emerald-500' },
-]
+import { formatCurrency, formatDate, getInitials } from '@/lib/utils'
+import { useProjects } from '@/hooks/useProjects'
 
 const statusFilters: { label: string; value: Status | 'alle' }[] = [
   { label: 'Alle', value: 'alle' },
@@ -44,14 +19,28 @@ const statusFilters: { label: string; value: Status | 'alle' }[] = [
   { label: 'Afgerond', value: 'afgerond' },
 ]
 
+const managerColors = ['bg-blue-500', 'bg-purple-500', 'bg-emerald-500', 'bg-amber-500', 'bg-rose-500']
+
+function managerColorFor(id: string | null | undefined): string {
+  if (!id) return 'bg-slate-400'
+  let hash = 0
+  for (let i = 0; i < id.length; i++) hash = (hash * 31 + id.charCodeAt(i)) >>> 0
+  return managerColors[hash % managerColors.length]
+}
+
 export default function ProjectsPage() {
   const navigate = useNavigate()
   const [search, setSearch] = useState('')
   const [activeFilter, setActiveFilter] = useState<Status | 'alle'>('alle')
   const [showNewModal, setShowNewModal] = useState(false)
 
-  const filtered = mockProjects.filter((p) => {
-    const matchesSearch = p.name.toLowerCase().includes(search.toLowerCase()) || p.client.toLowerCase().includes(search.toLowerCase()) || p.number.includes(search)
+  const { data: projects, isLoading, error } = useProjects()
+
+  const filtered = (projects ?? []).filter((p) => {
+    const matchesSearch =
+      p.name.toLowerCase().includes(search.toLowerCase()) ||
+      (p.client?.name ?? '').toLowerCase().includes(search.toLowerCase()) ||
+      (p.reference ?? '').toLowerCase().includes(search.toLowerCase())
     const matchesStatus = activeFilter === 'alle' || p.status === activeFilter
     return matchesSearch && matchesStatus
   })
@@ -106,62 +95,94 @@ export default function ProjectsPage() {
         ))}
       </div>
 
+      {/* Error */}
+      {error && (
+        <div className="text-center py-6 text-red-500 text-sm font-medium">
+          Er ging iets mis bij het laden van de projecten.
+        </div>
+      )}
+
+      {/* Loading */}
+      {isLoading && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <SkeletonCard key={i} />
+          ))}
+        </div>
+      )}
+
       {/* Grid */}
-      <motion.div
-        className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4"
-        initial="hidden"
-        animate="show"
-        variants={{ hidden: {}, show: { transition: { staggerChildren: 0.06 } } }}
-      >
-        {filtered.map((project) => (
-          <motion.div
-            key={project.id}
-            variants={{ hidden: { opacity: 0, y: 12 }, show: { opacity: 1, y: 0, transition: { duration: 0.3 } } }}
-            onClick={() => navigate(`/projecten/${project.id}`)}
-            className="bg-white border border-slate-100 rounded-2xl p-5 shadow-sm hover:shadow-md hover:border-slate-200 transition-all cursor-pointer group"
-          >
-            <div className="flex items-start justify-between gap-2 mb-3">
-              <div className="min-w-0">
-                <h3 className="font-semibold text-[#0F172A] truncate group-hover:text-[#C4943A] transition-colors">{project.name}</h3>
-                <p className="text-xs text-slate-400 font-mono mt-0.5">{project.number}</p>
-              </div>
-              <StatusBadge status={project.status} />
-            </div>
+      {!isLoading && !error && (
+        <motion.div
+          className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4"
+          initial="hidden"
+          animate="show"
+          variants={{ hidden: {}, show: { transition: { staggerChildren: 0.06 } } }}
+        >
+          {filtered.map((project) => {
+            const budget = project.budget ?? 0
+            const invoiced = project.total_invoiced ?? 0
+            const managerName = project.manager?.full_name
+            return (
+              <motion.div
+                key={project.id}
+                variants={{ hidden: { opacity: 0, y: 12 }, show: { opacity: 1, y: 0, transition: { duration: 0.3 } } }}
+                onClick={() => navigate(`/projecten/${project.id}`)}
+                className="bg-white border border-slate-100 rounded-2xl p-5 shadow-sm hover:shadow-md hover:border-slate-200 transition-all cursor-pointer group"
+              >
+                <div className="flex items-start justify-between gap-2 mb-3">
+                  <div className="min-w-0">
+                    <h3 className="font-semibold text-[#0F172A] truncate group-hover:text-[#C4943A] transition-colors">{project.name}</h3>
+                    {project.reference && <p className="text-xs text-slate-400 font-mono mt-0.5">{project.reference}</p>}
+                  </div>
+                  <StatusBadge status={project.status} />
+                </div>
 
-            <p className="text-sm text-slate-600 mb-3 truncate">{project.client}</p>
+                <p className="text-sm text-slate-600 mb-3 truncate">{project.client?.name ?? '—'}</p>
 
-            <div className="flex items-center gap-1.5 text-xs text-slate-400 mb-4">
-              <span>{formatDate(project.startDate)}</span>
-              <span>→</span>
-              <span>{formatDate(project.endDate)}</span>
-            </div>
+                <div className="flex items-center gap-1.5 text-xs text-slate-400 mb-4">
+                  <span>{project.start_date ? formatDate(project.start_date) : '—'}</span>
+                  <span>→</span>
+                  <span>{project.end_date ? formatDate(project.end_date) : '—'}</span>
+                </div>
 
-            {/* Budget progress */}
-            <div className="mb-4">
-              <div className="flex justify-between text-xs mb-1.5">
-                <span className="text-slate-500">Budget</span>
-                <span className="font-semibold text-[#0F172A]">{formatCurrency(project.budget)}</span>
-              </div>
-              <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-[#C4943A] rounded-full transition-all"
-                  style={{ width: `${Math.min((project.invoiced / project.budget) * 100, 100)}%` }}
-                />
-              </div>
-              <p className="text-xs text-slate-400 mt-1">{formatCurrency(project.invoiced)} gefactureerd</p>
-            </div>
+                {/* Budget progress */}
+                <div className="mb-4">
+                  <div className="flex justify-between text-xs mb-1.5">
+                    <span className="text-slate-500">Budget</span>
+                    <span className="font-semibold text-[#0F172A]">{formatCurrency(budget)}</span>
+                  </div>
+                  <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-[#C4943A] rounded-full transition-all"
+                      style={{ width: `${budget > 0 ? Math.min((invoiced / budget) * 100, 100) : 0}%` }}
+                    />
+                  </div>
+                  <p className="text-xs text-slate-400 mt-1">{formatCurrency(invoiced)} gefactureerd</p>
+                </div>
 
-            <div className="flex items-center gap-2 pt-3 border-t border-slate-50">
-              <span className={`w-7 h-7 rounded-full ${project.managerColor} text-white text-xs font-semibold flex items-center justify-center`}>
-                {project.managerInitials}
-              </span>
-              <span className="text-xs text-slate-500 truncate">{project.manager}</span>
-            </div>
-          </motion.div>
-        ))}
-      </motion.div>
+                <div className="flex items-center gap-2 pt-3 border-t border-slate-50">
+                  <span className={`w-7 h-7 rounded-full ${managerColorFor(project.manager_id)} text-white text-xs font-semibold flex items-center justify-center`}>
+                    {managerName ? getInitials(managerName) : '—'}
+                  </span>
+                  <span className="text-xs text-slate-500 truncate">{managerName ?? 'Geen manager'}</span>
+                </div>
+              </motion.div>
+            )
+          })}
+        </motion.div>
+      )}
 
-      {filtered.length === 0 && (
+      {!isLoading && !error && projects && projects.length === 0 && (
+        <EmptyState
+          icon={<FolderKanban size={28} />}
+          title="Nog geen projecten"
+          description="Maak uw eerste project aan om aan de slag te gaan."
+          action={{ label: '+ Nieuw project', onClick: () => setShowNewModal(true) }}
+        />
+      )}
+
+      {!isLoading && !error && projects && projects.length > 0 && filtered.length === 0 && (
         <div className="text-center py-16 text-slate-400">
           <p className="text-lg font-medium">Geen projecten gevonden</p>
           <p className="text-sm mt-1">Pas uw zoekopdracht of filters aan</p>

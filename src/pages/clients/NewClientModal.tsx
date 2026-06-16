@@ -1,7 +1,9 @@
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
+import { toast } from 'sonner'
 import { Modal } from '@/components/ui/Modal'
+import { useCreateClient } from '@/hooks/useClients'
 
 const belgianVatRegex = /^BE0[0-9]{9}$/
 
@@ -43,11 +45,27 @@ export function NewClientModal({ isOpen, onClose }: NewClientModalProps) {
   const { register, handleSubmit, formState: { errors, isSubmitting }, reset } = useForm<FormData>({
     resolver: zodResolver(schema),
   })
+  const createClient = useCreateClient()
 
   const onSubmit = async (data: FormData) => {
-    console.log('Nieuwe klant:', data)
-    reset()
-    onClose()
+    try {
+      await createClient.mutateAsync({
+        name: data.name,
+        vat_number: data.vat_number || null,
+        contact_person: data.contact_person || null,
+        email: data.email || null,
+        phone: data.phone || null,
+        address: data.address || null,
+        city: data.city || null,
+        postal_code: data.postal_code || null,
+        notes: data.notes || null,
+      })
+      toast.success('Klant aangemaakt', { description: `${data.name} is toegevoegd.` })
+      reset()
+      onClose()
+    } catch (err) {
+      toast.error('Aanmaken mislukt', { description: err instanceof Error ? err.message : 'Onbekende fout' })
+    }
   }
 
   return (

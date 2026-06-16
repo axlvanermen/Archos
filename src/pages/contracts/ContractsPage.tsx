@@ -1,25 +1,27 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Search, Plus } from 'lucide-react'
+import { Search, Plus, FileSignature } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { formatCurrency, formatDate } from '@/lib/utils'
 import { ContractStatusBadge, contractStatusFilters, type ContractStatus } from './contractStatus'
-import { mockContracts, getProjectById, getClientById } from './mockContractData'
+import { useContracts } from '@/hooks/useContracts'
+import { SkeletonCard } from '@/components/ui/LoadingSkeleton'
+import { EmptyState } from '@/components/ui/EmptyState'
 
 export default function ContractsPage() {
   const navigate = useNavigate()
   const [search, setSearch] = useState('')
   const [activeFilter, setActiveFilter] = useState<ContractStatus | 'alle'>('alle')
 
-  const filtered = mockContracts.filter((c) => {
-    const project = getProjectById(c.projectId)
-    const client = getClientById(c.clientId)
+  const { data: contracts, isLoading, error } = useContracts()
+
+  const filtered = (contracts ?? []).filter((c) => {
     const q = search.toLowerCase()
     const matchesSearch =
       c.reference.toLowerCase().includes(q) ||
       c.title.toLowerCase().includes(q) ||
-      (project?.name.toLowerCase().includes(q) ?? false) ||
-      (client?.name.toLowerCase().includes(q) ?? false)
+      (c.project?.name.toLowerCase().includes(q) ?? false) ||
+      (c.client?.name.toLowerCase().includes(q) ?? false)
     const matchesStatus = activeFilter === 'alle' || c.status === activeFilter
     return matchesSearch && matchesStatus
   })
@@ -71,17 +73,42 @@ export default function ContractsPage() {
         ))}
       </div>
 
+      {/* Loading */}
+      {isLoading && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <SkeletonCard key={i} />
+          ))}
+        </div>
+      )}
+
+      {/* Error */}
+      {!isLoading && error && (
+        <div className="text-center py-16 text-red-500">
+          <p className="text-sm font-medium">Er ging iets mis bij het laden van de contracten.</p>
+          <p className="text-xs mt-1 text-red-400">{error instanceof Error ? error.message : String(error)}</p>
+        </div>
+      )}
+
+      {/* Empty state */}
+      {!isLoading && !error && filtered.length === 0 && (contracts ?? []).length === 0 && (
+        <EmptyState
+          icon={<FileSignature size={28} />}
+          title="Nog geen contracten"
+          description="Maak uw eerste contract aan om afspraken met klanten vast te leggen."
+          action={{ label: 'Nieuw contract', onClick: () => navigate('/contracten/nieuw') }}
+        />
+      )}
+
       {/* Grid */}
-      <motion.div
-        className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4"
-        initial="hidden"
-        animate="show"
-        variants={{ hidden: {}, show: { transition: { staggerChildren: 0.06 } } }}
-      >
-        {filtered.map((contract) => {
-          const project = getProjectById(contract.projectId)
-          const client = getClientById(contract.clientId)
-          return (
+      {!isLoading && !error && filtered.length > 0 && (
+        <motion.div
+          className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4"
+          initial="hidden"
+          animate="show"
+          variants={{ hidden: {}, show: { transition: { staggerChildren: 0.06 } } }}
+        >
+          {filtered.map((contract) => (
             <motion.div
               key={contract.id}
               variants={{ hidden: { opacity: 0, y: 12 }, show: { opacity: 1, y: 0, transition: { duration: 0.3 } } }}
@@ -96,21 +123,21 @@ export default function ContractsPage() {
                 <ContractStatusBadge status={contract.status} />
               </div>
 
-              <p className="text-sm text-slate-600 mb-1 truncate">{project?.name ?? '—'}</p>
-              <p className="text-xs text-slate-400 mb-3 truncate">{client?.name ?? '—'}</p>
+              <p className="text-sm text-slate-600 mb-1 truncate">{contract.project?.name ?? '—'}</p>
+              <p className="text-xs text-slate-400 mb-3 truncate">{contract.client?.name ?? '—'}</p>
 
               <div className="flex items-center justify-between pt-3 border-t border-slate-50">
-                <span className="text-sm font-semibold text-[#0F172A]">{formatCurrency(contract.contractValue)}</span>
+                <span className="text-sm font-semibold text-[#0F172A]">{formatCurrency(contract.contract_value)}</span>
                 <span className="text-xs text-slate-400">
-                  {contract.signDate ? formatDate(contract.signDate) : 'Nog niet ondertekend'}
+                  {contract.sign_date ? formatDate(contract.sign_date) : 'Nog niet ondertekend'}
                 </span>
               </div>
             </motion.div>
-          )
-        })}
-      </motion.div>
+          ))}
+        </motion.div>
+      )}
 
-      {filtered.length === 0 && (
+      {!isLoading && !error && filtered.length === 0 && (contracts ?? []).length > 0 && (
         <div className="text-center py-16 text-slate-400">
           <p className="text-lg font-medium">Geen contracten gevonden</p>
           <p className="text-sm mt-1">Pas uw zoekopdracht of filters aan</p>

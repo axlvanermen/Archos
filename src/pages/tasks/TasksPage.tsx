@@ -1,9 +1,13 @@
 import { useMemo, useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { AnimatePresence, motion } from 'framer-motion'
-import { Search, Plus, List, KanbanSquare, ListChecks, AlertTriangle, CheckCircle2 } from 'lucide-react'
-import { cn, formatDate } from '@/lib/utils'
+import { Search, Plus, List, KanbanSquare, ListChecks, AlertTriangle, CheckCircle2, ClipboardList } from 'lucide-react'
+import { cn, formatDate, getInitials } from '@/lib/utils'
+import { supabase } from '@/lib/supabase'
 import type { Task } from '@/types'
-import { mockTasks, mockTaskProjects, getTaskProjectById, getAssigneeById } from './mockTaskData'
+import { useTasks, useUpdateTask } from '@/hooks/useTasks'
+import { SkeletonTable } from '@/components/ui/LoadingSkeleton'
+import { EmptyState } from '@/components/ui/EmptyState'
 import { TaskStatusBadge, TaskPriorityBadge, kanbanStatuses, nextStatus } from './taskMeta'
 import { NewTaskModal } from './NewTaskModal'
 
@@ -11,6 +15,14 @@ type ViewMode = 'lijst' | 'bord'
 
 const container = { hidden: {}, show: { transition: { staggerChildren: 0.04 } } }
 const item = { hidden: { opacity: 0, y: 10 }, show: { opacity: 1, y: 0, transition: { duration: 0.25 } } }
+
+const avatarColors = ['bg-blue-500', 'bg-purple-500', 'bg-emerald-500', 'bg-amber-500', 'bg-rose-500', 'bg-cyan-500']
+
+function avatarColorFor(name: string): string {
+  let hash = 0
+  for (let i = 0; i < name.length; i++) hash = (hash * 31 + name.charCodeAt(i)) >>> 0
+  return avatarColors[hash % avatarColors.length]
+}
 
 function isOverdue(task: Task): boolean {
   if (!task.due_date || task.status === 'done' || task.status === 'cancelled') return false
@@ -32,14 +44,23 @@ function isThisWeek(dateStr: string): boolean {
 }
 
 export default function TasksPage() {
-  const [tasks, setTasks] = useState<Task[]>(mockTasks)
+  const { data: tasks, isLoading, error } = useTasks()
+  const updateTask = useUpdateTask()
+  const { data: projects } = useQuery({
+    queryKey: ['projects-picker'],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('projects').select('id, name').order('name')
+      if (error) throw error
+      return data
+    },
+  })
   const [search, setSearch] = useState('')
   const [projectFilter, setProjectFilter] = useState<string>('alle')
   const [viewMode, setViewMode] = useState<ViewMode>('lijst')
   const [showNewModal, setShowNewModal] = useState(false)
 
   const filtered = useMemo(() => {
-    return tasks.filter((t) => {
+    return (tasks ?? []).filter((t) => {
       const matchesSearch = t.title.toLowerCase().includes(search.toLowerCase())
       const matchesProject = projectFilter === 'alle' || t.project_id === projectFilter
       return matchesSearch && matchesProject
@@ -47,20 +68,20 @@ export default function TasksPage() {
   }, [tasks, search, projectFilter])
 
   const stats = useMemo(() => {
-    const open = tasks.filter((t) => t.status !== 'done' && t.status !== 'cancelled').length
-    const overdue = tasks.filter(isOverdue).length
-    const doneThisWeek = tasks.filter((t) => t.status === 'done' && t.completed_at && isThisWeek(t.completed_at)).length
+    const all = tasks ?? []
+    const open = all.filter((t) => t.status !== 'done' && t.status !== 'cancelled').length
+    const overdue = all.filter(isOverdue).length
+    const doneThisWeek = all.filter((t) => t.status === 'done' && t.completed_at && isThisWeek(t.completed_at)).length
     return { open, overdue, doneThisWeek }
   }, [tasks])
 
-  const cycleStatus = (taskId: string) => {
-    setTasks((prev) =>
-      prev.map((t) =>
-        t.id === taskId
-          ? { ...t, status: nextStatus(t.status), completed_at: nextStatus(t.status) === 'done' ? new Date().toISOString().slice(0, 10) : t.completed_at }
-          : t,
-      ),
-    )
+  const cycleStatus = (task: Task) => {
+    const next = nextStatus(task.status)
+    updateTask.mutate({
+      id: task.id,
+      status: next,
+      completed_at: next === 'done' ? new Date().toISOString().slice(0, 10) : task.completed_at,
+    })
   }
 
   return (
@@ -154,7 +175,7 @@ export default function TasksPage() {
         >
           Alle
         </button>
-        {mockTaskProjects.map((p) => (
+        {(projects ?? []).map((p) => (
           <button
             key={p.id}
             onClick={() => setProjectFilter(p.id)}
@@ -168,145 +189,144 @@ export default function TasksPage() {
         ))}
       </div>
 
-      <AnimatePresence mode="wait">
-        {viewMode === 'lijst' ? (
-          <motion.div
-            key="lijst"
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8 }}
-            transition={{ duration: 0.2 }}
-            className="bg-white border border-slate-100 rounded-2xl shadow-sm overflow-hidden"
-          >
-            {filtered.length === 0 ? (
-              <EmptyState />
-            ) : (
-              <ul className="divide-y divide-slate-50">
-                {filtered.map((task) => {
-                  const project = getTaskProjectById(task.project_id)
-                  const assignee = getAssigneeById(task.assignee_id)
-                  const overdue = isOverdue(task)
-                  return (
-                    <li key={task.id} className="flex items-center gap-3 px-5 py-3.5 hover:bg-slate-50/60 transition-colors">
-                      <button
-                        onClick={() => cycleStatus(task.id)}
-                        title="Status wijzigen"
-                        className={cn(
-                          'flex-shrink-0 w-5 h-5 rounded-md border-2 flex items-center justify-center cursor-pointer transition-colors',
-                          task.status === 'done'
-                            ? 'bg-emerald-500 border-emerald-500'
-                            : task.status === 'cancelled'
-                              ? 'bg-slate-200 border-slate-300'
-                              : 'border-slate-300 hover:border-[#C4943A]',
-                        )}
-                      >
-                        {task.status === 'done' && <CheckCircle2 size={13} className="text-white" />}
-                      </button>
-
-                      <div className="min-w-0 flex-1">
-                        <p className={cn('text-sm font-medium text-[#0F172A] truncate', task.status === 'cancelled' && 'line-through text-slate-400')}>
-                          {task.title}
-                        </p>
-                        <div className="flex items-center gap-2 mt-1 flex-wrap">
-                          {project && (
-                            <span className="px-2 py-0.5 bg-slate-100 text-slate-500 text-xs rounded-full">{project.name}</span>
+      {isLoading ? (
+        <SkeletonTable rows={6} columns={5} />
+      ) : error ? (
+        <div className="bg-white border border-red-100 rounded-2xl shadow-sm p-8 text-center text-sm text-red-600">
+          Er ging iets mis bij het laden van de taken.
+        </div>
+      ) : (
+        <AnimatePresence mode="wait">
+          {viewMode === 'lijst' ? (
+            <motion.div
+              key="lijst"
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.2 }}
+              className="bg-white border border-slate-100 rounded-2xl shadow-sm overflow-hidden"
+            >
+              {filtered.length === 0 ? (
+                <EmptyState
+                  icon={<ClipboardList size={28} />}
+                  title="Geen taken gevonden"
+                  description="Pas uw zoekopdracht of filters aan."
+                />
+              ) : (
+                <ul className="divide-y divide-slate-50">
+                  {filtered.map((task) => {
+                    const overdue = isOverdue(task)
+                    return (
+                      <li key={task.id} className="flex items-center gap-3 px-5 py-3.5 hover:bg-slate-50/60 transition-colors">
+                        <button
+                          onClick={() => cycleStatus(task)}
+                          title="Status wijzigen"
+                          className={cn(
+                            'flex-shrink-0 w-5 h-5 rounded-md border-2 flex items-center justify-center cursor-pointer transition-colors',
+                            task.status === 'done'
+                              ? 'bg-emerald-500 border-emerald-500'
+                              : task.status === 'cancelled'
+                                ? 'bg-slate-200 border-slate-300'
+                                : 'border-slate-300 hover:border-[#C4943A]',
                           )}
-                          {task.tags.map((tag) => (
-                            <span key={tag} className="px-2 py-0.5 bg-amber-50 text-amber-700 text-xs rounded-full">{tag}</span>
-                          ))}
-                        </div>
-                      </div>
-
-                      <TaskStatusBadge status={task.status} className="hidden sm:flex flex-shrink-0" />
-                      <TaskPriorityBadge priority={task.priority} className="hidden md:flex flex-shrink-0" />
-
-                      <span className={cn('flex-shrink-0 text-xs w-20 text-right', overdue ? 'text-red-600 font-semibold' : 'text-slate-400')}>
-                        {task.due_date ? formatDate(task.due_date) : '—'}
-                      </span>
-
-                      {assignee ? (
-                        <span
-                          title={assignee.name}
-                          className={cn('flex-shrink-0 w-8 h-8 rounded-full text-white text-xs font-semibold flex items-center justify-center', assignee.color)}
                         >
-                          {assignee.initials}
+                          {task.status === 'done' && <CheckCircle2 size={13} className="text-white" />}
+                        </button>
+
+                        <div className="min-w-0 flex-1">
+                          <p className={cn('text-sm font-medium text-[#0F172A] truncate', task.status === 'cancelled' && 'line-through text-slate-400')}>
+                            {task.title}
+                          </p>
+                          <div className="flex items-center gap-2 mt-1 flex-wrap">
+                            {task.project?.name && (
+                              <span className="px-2 py-0.5 bg-slate-100 text-slate-500 text-xs rounded-full">{task.project.name}</span>
+                            )}
+                            {task.tags.map((tag) => (
+                              <span key={tag} className="px-2 py-0.5 bg-amber-50 text-amber-700 text-xs rounded-full">{tag}</span>
+                            ))}
+                          </div>
+                        </div>
+
+                        <TaskStatusBadge status={task.status} className="hidden sm:flex flex-shrink-0" />
+                        <TaskPriorityBadge priority={task.priority} className="hidden md:flex flex-shrink-0" />
+
+                        <span className={cn('flex-shrink-0 text-xs w-20 text-right', overdue ? 'text-red-600 font-semibold' : 'text-slate-400')}>
+                          {task.due_date ? formatDate(task.due_date) : '—'}
                         </span>
-                      ) : (
-                        <span className="flex-shrink-0 w-8 h-8 rounded-full bg-slate-100 text-slate-400 text-xs font-semibold flex items-center justify-center">
-                          —
-                        </span>
-                      )}
-                    </li>
-                  )
-                })}
-              </ul>
-            )}
-          </motion.div>
-        ) : (
-          <motion.div
-            key="bord"
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8 }}
-            transition={{ duration: 0.2 }}
-            className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4"
-          >
-            {kanbanStatuses.map((status) => {
-              const columnTasks = filtered.filter((t) => t.status === status)
-              return (
-                <div key={status} className="bg-slate-50 rounded-2xl border border-slate-100 p-3 min-h-[120px]">
-                  <div className="flex items-center justify-between mb-3 px-1">
-                    <TaskStatusBadge status={status} />
-                    <span className="text-xs font-semibold text-slate-400">{columnTasks.length}</span>
-                  </div>
-                  <div className="space-y-2.5">
-                    {columnTasks.map((task) => {
-                      const project = getTaskProjectById(task.project_id)
-                      const assignee = getAssigneeById(task.assignee_id)
-                      const overdue = isOverdue(task)
-                      return (
-                        <div key={task.id} className="bg-white border border-slate-100 rounded-xl p-3.5 shadow-sm hover:shadow-md transition-shadow">
-                          <p className="text-sm font-medium text-[#0F172A] mb-2 leading-snug">{task.title}</p>
-                          {project && (
-                            <span className="inline-block px-2 py-0.5 bg-slate-100 text-slate-500 text-xs rounded-full mb-2">{project.name}</span>
-                          )}
-                          <div className="flex items-center justify-between mt-2">
-                            <TaskPriorityBadge priority={task.priority} />
-                            {assignee && (
-                              <span className={cn('w-6 h-6 rounded-full text-white text-[10px] font-semibold flex items-center justify-center', assignee.color)}>
-                                {assignee.initials}
-                              </span>
+
+                        {task.assignee ? (
+                          <span
+                            title={task.assignee.full_name}
+                            className={cn('flex-shrink-0 w-8 h-8 rounded-full text-white text-xs font-semibold flex items-center justify-center', avatarColorFor(task.assignee.full_name))}
+                          >
+                            {getInitials(task.assignee.full_name)}
+                          </span>
+                        ) : (
+                          <span className="flex-shrink-0 w-8 h-8 rounded-full bg-slate-100 text-slate-400 text-xs font-semibold flex items-center justify-center">
+                            —
+                          </span>
+                        )}
+                      </li>
+                    )
+                  })}
+                </ul>
+              )}
+            </motion.div>
+          ) : (
+            <motion.div
+              key="bord"
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.2 }}
+              className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4"
+            >
+              {kanbanStatuses.map((status) => {
+                const columnTasks = filtered.filter((t) => t.status === status)
+                return (
+                  <div key={status} className="bg-slate-50 rounded-2xl border border-slate-100 p-3 min-h-[120px]">
+                    <div className="flex items-center justify-between mb-3 px-1">
+                      <TaskStatusBadge status={status} />
+                      <span className="text-xs font-semibold text-slate-400">{columnTasks.length}</span>
+                    </div>
+                    <div className="space-y-2.5">
+                      {columnTasks.map((task) => {
+                        const overdue = isOverdue(task)
+                        return (
+                          <div key={task.id} className="bg-white border border-slate-100 rounded-xl p-3.5 shadow-sm hover:shadow-md transition-shadow">
+                            <p className="text-sm font-medium text-[#0F172A] mb-2 leading-snug">{task.title}</p>
+                            {task.project?.name && (
+                              <span className="inline-block px-2 py-0.5 bg-slate-100 text-slate-500 text-xs rounded-full mb-2">{task.project.name}</span>
+                            )}
+                            <div className="flex items-center justify-between mt-2">
+                              <TaskPriorityBadge priority={task.priority} />
+                              {task.assignee && (
+                                <span className={cn('w-6 h-6 rounded-full text-white text-[10px] font-semibold flex items-center justify-center', avatarColorFor(task.assignee.full_name))}>
+                                  {getInitials(task.assignee.full_name)}
+                                </span>
+                              )}
+                            </div>
+                            {task.due_date && (
+                              <p className={cn('text-xs mt-2', overdue ? 'text-red-600 font-semibold' : 'text-slate-400')}>
+                                {formatDate(task.due_date)}
+                              </p>
                             )}
                           </div>
-                          {task.due_date && (
-                            <p className={cn('text-xs mt-2', overdue ? 'text-red-600 font-semibold' : 'text-slate-400')}>
-                              {formatDate(task.due_date)}
-                            </p>
-                          )}
-                        </div>
-                      )
-                    })}
-                    {columnTasks.length === 0 && (
-                      <p className="text-xs text-slate-400 text-center py-6">Geen taken</p>
-                    )}
+                        )
+                      })}
+                      {columnTasks.length === 0 && (
+                        <p className="text-xs text-slate-400 text-center py-6">Geen taken</p>
+                      )}
+                    </div>
                   </div>
-                </div>
-              )
-            })}
-          </motion.div>
-        )}
-      </AnimatePresence>
+                )
+              })}
+            </motion.div>
+          )}
+        </AnimatePresence>
+      )}
 
       <NewTaskModal isOpen={showNewModal} onClose={() => setShowNewModal(false)} />
-    </div>
-  )
-}
-
-function EmptyState() {
-  return (
-    <div className="text-center py-16 text-slate-400">
-      <p className="text-lg font-medium">Geen taken gevonden</p>
-      <p className="text-sm mt-1">Pas uw zoekopdracht of filters aan</p>
     </div>
   )
 }
