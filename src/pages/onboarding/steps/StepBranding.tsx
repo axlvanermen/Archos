@@ -253,7 +253,7 @@ export default function StepBranding({ onNext, onBack }: Props) {
             type="button"
             onClick={() => fileInputRef.current?.click()}
             className="w-full flex flex-col items-center justify-center gap-2 py-6 rounded-xl border-2 border-dashed border-slate-200
-              hover:border-[var(--color-accent)] hover:bg-orange-50 transition-all group"
+              hover:border-[var(--color-accent)] hover:bg-amber-50 transition-all group"
           >
             <Upload className="w-6 h-6 text-slate-300 group-hover:text-[var(--color-accent)] transition-colors" />
             <div className="text-center">

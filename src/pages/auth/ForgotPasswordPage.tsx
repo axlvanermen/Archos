@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Building2, Loader2, AlertCircle, CheckCircle, ArrowLeft, Mail } from 'lucide-react'
+import { Loader2, AlertCircle, CheckCircle, ArrowLeft, Mail } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 
 export default function ForgotPasswordPage() {
@@ -52,14 +52,9 @@ export default function ForgotPasswordPage() {
       <div className="relative w-full max-w-sm">
         {/* Logo & brand */}
         <div className="text-center mb-8">
-          <div
-            className="inline-flex items-center justify-center w-14 h-14 rounded-2xl mb-4"
-            style={{ background: 'var(--color-primary)' }}
-          >
-            <Building2 className="w-7 h-7 text-white" />
-          </div>
+          <img src="/archos-mark.png" alt="Archos" className="w-14 h-14 object-contain mx-auto mb-4" />
           <h1 className="text-2xl font-bold tracking-tight" style={{ color: 'var(--color-primary)' }}>
-            Archos
+            ARCHOS
           </h1>
         </div>
 

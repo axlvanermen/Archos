@@ -11,7 +11,7 @@ interface Theme {
 const defaults: Theme = {
   primary: '#0F172A',
   secondary: '#334155',
-  accent: '#F97316',
+  accent: '#C4943A',
 }
 
 interface ThemeContextType {

@@ -60,25 +60,12 @@ export function Sidebar() {
   return (
     <aside className="hidden md:flex flex-col fixed left-0 top-0 bottom-0 w-64 bg-white border-r border-slate-200 z-30">
       {/* Logo */}
-      <div className="flex items-center h-16 px-5 border-b border-slate-100 flex-shrink-0">
-        <img
-          src="/logo.png"
-          alt="Archos"
-          className="h-10 w-auto object-contain"
-          onError={(e) => {
-            // Fallback to text logo if image missing
-            const target = e.currentTarget
-            target.style.display = 'none'
-            const parent = target.parentElement
-            if (parent && !parent.querySelector('.logo-fallback')) {
-              const fallback = document.createElement('span')
-              fallback.className = 'logo-fallback text-xl font-bold tracking-tight'
-              fallback.style.color = 'var(--color-primary)'
-              fallback.textContent = 'Archos'
-              parent.appendChild(fallback)
-            }
-          }}
-        />
+      <div className="flex items-center gap-2.5 h-16 px-5 border-b border-slate-100 flex-shrink-0">
+        <img src="/archos-mark.png" alt="" className="h-8 w-8 object-contain flex-shrink-0" />
+        <span className="text-lg font-bold tracking-tight" style={{ color: 'var(--color-primary)' }}>
+          ARCHOS
+          <span className="text-[var(--color-accent)]">.</span>
+        </span>
       </div>
 
       {/* Navigation */}
