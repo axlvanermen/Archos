@@ -148,7 +148,7 @@ export default function SubcontractorsPage() {
           >
             <div className="flex items-start justify-between gap-2 mb-3">
               <div className="min-w-0">
-                <h3 className="font-semibold text-[#0F172A] truncate group-hover:text-[#C4943A] transition-colors">{sub.name}</h3>
+                <h3 className="font-semibold text-[#0F172A] line-clamp-2 group-hover:text-[#C4943A] transition-colors">{sub.name}</h3>
                 <p className="text-xs text-slate-400 font-mono mt-0.5">{sub.vat_number ?? '—'}</p>
               </div>
               <ComplianceBadge vcaExpiryDate={sub.vca_expiry_date} rszExpiryDate={sub.rsz_attestation_expiry_date} />

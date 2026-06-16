@@ -138,7 +138,7 @@ export default function StepBedrijfsType({ onNext, onBack }: Props) {
               onClick={() => setSelected(value)}
               className={`relative flex flex-col items-start gap-2 p-4 rounded-xl border-2 text-left transition-all
                 ${isSelected
-                  ? 'border-[var(--color-accent)] bg-orange-50 shadow-sm'
+                  ? 'border-[var(--color-accent)] bg-amber-50 shadow-sm'
                   : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'
                 }`}
             >

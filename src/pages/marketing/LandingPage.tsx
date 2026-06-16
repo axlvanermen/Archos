@@ -270,7 +270,7 @@ function Hero() {
           {/* Left copy */}
           <div className="flex flex-col gap-6">
             <motion.div {...fadeUp0}>
-              <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#C4943A]-50 border border-orange-100 text-xs font-semibold text-[#C4943A]">
+              <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-amber-50 border border-amber-100 text-xs font-semibold text-[#C4943A]">
                 <HardHat size={13} />
                 Voor Belgische bouwbedrijven
               </span>
@@ -420,7 +420,7 @@ function Features() {
               {...useFadeUp(i * 0.07)}
               className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm hover:shadow-md transition-shadow flex flex-col gap-4"
             >
-              <div className="w-10 h-10 rounded-xl bg-[#C4943A]-50 flex items-center justify-center">
+              <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center">
                 <Icon size={20} className="text-[#C4943A]" />
               </div>
               <div>
@@ -501,9 +501,9 @@ function CompanyTypes() {
             <motion.div
               key={title}
               {...useFadeUp(i * 0.05)}
-              className="bg-[#F8FAFC] rounded-2xl p-5 border border-gray-100 hover:border-orange-200 hover:shadow-sm transition-all flex flex-col gap-3"
+              className="bg-[#F8FAFC] rounded-2xl p-5 border border-gray-100 hover:border-amber-200 hover:shadow-sm transition-all flex flex-col gap-3"
             >
-              <div className="w-9 h-9 rounded-lg bg-[#C4943A]-50 flex items-center justify-center">
+              <div className="w-9 h-9 rounded-lg bg-amber-50 flex items-center justify-center">
                 <Icon size={18} className="text-[#C4943A]" />
               </div>
               <div>
@@ -774,7 +774,7 @@ function Pricing() {
                 href={plan.href}
                 className={`mt-auto block text-center px-5 py-3 rounded-xl text-sm font-semibold transition-colors ${
                   plan.popular
-                    ? 'bg-[#C4943A] text-white hover:bg-[#C4943A]-500'
+                    ? 'bg-[#C4943A] text-white hover:bg-[#A87D2E]'
                     : 'bg-[#0F172A] text-white hover:bg-slate-800'
                 }`}
               >
@@ -874,7 +874,7 @@ function CtaSection() {
         <motion.div {...useFadeUp(0.16)} className="mt-8">
           <a
             href="/register"
-            className="inline-flex items-center gap-2 px-8 py-4 text-base font-semibold text-white bg-[#C4943A] rounded-xl hover:bg-[#C4943A]-500 transition-colors shadow-lg"
+            className="inline-flex items-center gap-2 px-8 py-4 text-base font-semibold text-white bg-[#C4943A] rounded-xl hover:bg-[#A87D2E] transition-colors shadow-lg"
           >
             Start gratis proefperiode
             <ArrowRight size={18} />

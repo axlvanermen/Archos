@@ -58,7 +58,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           applyTheme({
             primary: companyData.primary_color ?? '#0F172A',
             secondary: companyData.secondary_color ?? '#334155',
-            accent: companyData.accent_color ?? '#F97316',
+            accent: companyData.accent_color ?? '#C4943A',
             logoUrl: companyData.logo_url ?? undefined,
             companyName: companyData.name,
           })
@@ -82,7 +82,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             applyTheme({
               primary: companyData.primary_color ?? '#0F172A',
               secondary: companyData.secondary_color ?? '#334155',
-              accent: companyData.accent_color ?? '#F97316',
+              accent: companyData.accent_color ?? '#C4943A',
               logoUrl: companyData.logo_url ?? undefined,
               companyName: companyData.name,
             })
