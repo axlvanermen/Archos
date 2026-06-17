@@ -5,6 +5,7 @@ import { ThemeProvider } from '@/context/ThemeContext'
 import { AuthProvider } from '@/context/AuthContext'
 import { AppShell } from '@/components/layout/AppShell'
 import LandingPage from '@/pages/marketing/LandingPage'
+import BokrijkVakantiewoningPage from '@/pages/marketing/BokrijkVakantiewoningPage'
 import LoginPage from '@/pages/auth/LoginPage'
 import ForgotPasswordPage from '@/pages/auth/ForgotPasswordPage'
 import OnboardingPage from '@/pages/onboarding/OnboardingPage'
@@ -41,6 +42,7 @@ function AppRoutes() {
     <Routes>
       {/* Marketing */}
       <Route path="/" element={<LandingPage />} />
+      <Route path="/vakantiewoning-bokrijk" element={<BokrijkVakantiewoningPage />} />
 
       {/* Auth */}
       <Route path="/login" element={<LoginPage />} />
