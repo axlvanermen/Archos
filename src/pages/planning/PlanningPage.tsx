@@ -1,13 +1,14 @@
 import { useMemo, useState } from 'react'
 import { motion } from 'framer-motion'
-import { ChevronDown, ChevronRight, AlertTriangle } from 'lucide-react'
+import { ChevronDown, ChevronRight, AlertTriangle, CalendarDays } from 'lucide-react'
 import { cn, formatDate } from '@/lib/utils'
-import { mockPlanningProjects, type PhaseStatus, type PlanningProject, type ProjectPhase } from './mockPlanningData'
+import { usePlanningProjects, type PlanningProject, type ProjectPhase } from '@/hooks/useProjectPhases'
+import { SkeletonCard } from '@/components/ui/LoadingSkeleton'
+import { EmptyState } from '@/components/ui/EmptyState'
 
-// Fixed reference "today" used for the demo — there is no real backend yet,
-// so we anchor "today" inside the mock data's date range (2025) instead of
-// using the real current date, which would fall outside the visible chart.
-const TODAY = new Date('2025-06-16')
+type PhaseStatus = ProjectPhase['status']
+
+const TODAY = new Date()
 
 const statusStyles: Record<PhaseStatus, { bar: string; fill: string; label: string; text: string }> = {
   gepland: { bar: 'bg-slate-300', fill: 'bg-slate-400', label: 'Gepland', text: 'text-slate-600' },
@@ -21,8 +22,8 @@ function daysBetween(a: Date, b: Date): number {
 }
 
 function getRange(projects: PlanningProject[]): { start: Date; end: Date } {
-  const starts = projects.map((p) => new Date(p.startDate).getTime())
-  const ends = projects.map((p) => new Date(p.endDate).getTime())
+  const starts = projects.map((p) => new Date(p.start_date).getTime())
+  const ends = projects.map((p) => new Date(p.end_date).getTime())
   return { start: new Date(Math.min(...starts)), end: new Date(Math.max(...ends)) }
 }
 
@@ -44,8 +45,8 @@ function getMonthLabels(start: Date, end: Date): { label: string; left: number }
 const LABEL_COL_WIDTH = 224 // px, fixed so month-header / today-marker math lines up exactly with phase tracks
 
 function PhaseRow({ phase, rangeStart, totalDays }: { phase: ProjectPhase; rangeStart: Date; totalDays: number }) {
-  const start = new Date(phase.startDate)
-  const end = new Date(phase.endDate)
+  const start = new Date(phase.start_date)
+  const end = new Date(phase.end_date)
   const left = (daysBetween(rangeStart, start) / totalDays) * 100
   const width = Math.max((daysBetween(start, end) / totalDays) * 100, 0.5)
   const styles = statusStyles[phase.status]
@@ -54,7 +55,7 @@ function PhaseRow({ phase, rangeStart, totalDays }: { phase: ProjectPhase; range
     <div className="flex items-center gap-4 py-2.5">
       <div style={{ width: LABEL_COL_WIDTH }} className="flex-shrink-0 pr-2">
         <p className="text-sm text-slate-700 leading-snug truncate" title={phase.name}>{phase.name}</p>
-        <p className="text-xs text-slate-400 mt-0.5">{formatDate(phase.startDate)} → {formatDate(phase.endDate)}</p>
+        <p className="text-xs text-slate-400 mt-0.5">{formatDate(phase.start_date)} → {formatDate(phase.end_date)}</p>
       </div>
       <div className="relative flex-1 h-7 min-w-[480px]">
         <div className="absolute inset-y-0 left-0 right-0 rounded-md bg-slate-50" />
@@ -105,7 +106,7 @@ function ProjectGanttSection({
         >
           {expanded ? <ChevronDown size={16} className="text-slate-400" /> : <ChevronRight size={16} className="text-slate-400" />}
           <span className="font-semibold text-[#0F172A] text-sm">{project.name}</span>
-          <span className="text-xs text-slate-400">{formatDate(project.startDate)} → {formatDate(project.endDate)}</span>
+          <span className="text-xs text-slate-400">{formatDate(project.start_date)} → {formatDate(project.end_date)}</span>
         </button>
       )}
       {expanded && (
@@ -121,13 +122,19 @@ function ProjectGanttSection({
 
 export default function PlanningPage() {
   const [selectedProjectId, setSelectedProjectId] = useState<string | 'alle'>('alle')
+  const { data: allProjects, isLoading, error } = usePlanningProjects()
+
+  const projects = allProjects ?? []
 
   const visibleProjects = useMemo(
-    () => (selectedProjectId === 'alle' ? mockPlanningProjects : mockPlanningProjects.filter((p) => p.id === selectedProjectId)),
-    [selectedProjectId],
+    () => (selectedProjectId === 'alle' ? projects : projects.filter((p) => p.id === selectedProjectId)),
+    [projects, selectedProjectId],
   )
 
-  const { start: rangeStart, end: rangeEnd } = useMemo(() => getRange(visibleProjects), [visibleProjects])
+  const { start: rangeStart, end: rangeEnd } = useMemo(
+    () => visibleProjects.length > 0 ? getRange(visibleProjects) : { start: new Date(), end: new Date() },
+    [visibleProjects],
+  )
   const totalDays = Math.max(daysBetween(rangeStart, rangeEnd), 1)
   const monthLabels = useMemo(() => getMonthLabels(rangeStart, rangeEnd), [rangeStart, rangeEnd])
 
@@ -159,7 +166,7 @@ export default function PlanningPage() {
         >
           Alle projecten
         </button>
-        {mockPlanningProjects.map((p) => (
+        {projects.map((p) => (
           <button
             key={p.id}
             onClick={() => setSelectedProjectId(p.id)}
@@ -189,7 +196,31 @@ export default function PlanningPage() {
         </span>
       </div>
 
+      {/* Loading */}
+      {isLoading && (
+        <div className="grid grid-cols-1 gap-4">
+          {Array.from({ length: 3 }).map((_, i) => <SkeletonCard key={i} />)}
+        </div>
+      )}
+
+      {/* Error */}
+      {!isLoading && error && (
+        <div className="text-center py-16 text-red-500">
+          <p className="text-sm font-medium">Er ging iets mis bij het laden van de planning.</p>
+        </div>
+      )}
+
+      {/* Empty */}
+      {!isLoading && !error && projects.length === 0 && (
+        <EmptyState
+          icon={<CalendarDays size={28} />}
+          title="Geen planningsfases"
+          description="Voeg fases toe aan uw projecten om de Gantt-planning te zien."
+        />
+      )}
+
       {/* Gantt chart */}
+      {!isLoading && !error && visibleProjects.length > 0 && (
       <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 sm:p-6">
         <div className="overflow-x-auto">
           <div className="min-w-[760px]">
@@ -238,10 +269,6 @@ export default function PlanningPage() {
         </div>
       </div>
 
-      {visibleProjects.length === 0 && (
-        <div className="text-center py-16 text-slate-400">
-          <p className="text-lg font-medium">Geen project geselecteerd</p>
-        </div>
       )}
     </div>
   )

@@ -1,12 +1,15 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Search, Plus, Wallet, AlertTriangle, CheckCircle2 } from 'lucide-react'
+import { Search, Plus, Wallet, AlertTriangle, CheckCircle2, Receipt } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { formatCurrency, formatDate } from '@/lib/utils'
 import { InvoiceStatusBadge, invoiceStatusFilters, type InvoiceStatus } from './invoiceStatus'
-import { mockInvoices, getProjectById, getClientById, MOCK_TODAY } from './mockInvoiceData'
+import { useInvoices } from '@/hooks/useInvoices'
+import { SkeletonCard } from '@/components/ui/LoadingSkeleton'
+import { EmptyState } from '@/components/ui/EmptyState'
 
-const today = new Date(MOCK_TODAY)
+const today = new Date()
+today.setHours(0, 0, 0, 0)
 
 function isOverdue(status: InvoiceStatus, dueDate: string | null): boolean {
   if (!dueDate) return false
@@ -18,32 +21,32 @@ export default function InvoicesPage() {
   const navigate = useNavigate()
   const [search, setSearch] = useState('')
   const [activeFilter, setActiveFilter] = useState<InvoiceStatus | 'alle'>('alle')
+  const { data: invoices, isLoading, error } = useInvoices()
 
-  const filtered = mockInvoices.filter((inv) => {
-    const project = getProjectById(inv.projectId)
-    const client = getClientById(inv.clientId)
+  const thisMonth = new Date().toISOString().slice(0, 7)
+
+  const filtered = (invoices ?? []).filter((inv) => {
     const q = search.toLowerCase()
     const matchesSearch =
       inv.reference.toLowerCase().includes(q) ||
       inv.title.toLowerCase().includes(q) ||
-      (project?.name.toLowerCase().includes(q) ?? false) ||
-      (client?.name.toLowerCase().includes(q) ?? false)
+      (inv.project?.name.toLowerCase().includes(q) ?? false) ||
+      (inv.client?.name.toLowerCase().includes(q) ?? false)
     const matchesStatus = activeFilter === 'alle' || inv.status === activeFilter
     return matchesSearch && matchesStatus
   })
 
-  // Stats
-  const totaalOpenstaand = mockInvoices
+  const totaalOpenstaand = (invoices ?? [])
     .filter((inv) => inv.status === 'sent' || inv.status === 'overdue' || inv.status === 'draft')
-    .reduce((sum, inv) => sum + (inv.total - inv.amountPaid), 0)
+    .reduce((sum, inv) => sum + (inv.total - inv.amount_paid), 0)
 
-  const totaalAchterstallig = mockInvoices
-    .filter((inv) => isOverdue(inv.status, inv.dueDate))
-    .reduce((sum, inv) => sum + (inv.total - inv.amountPaid), 0)
+  const totaalAchterstallig = (invoices ?? [])
+    .filter((inv) => isOverdue(inv.status as InvoiceStatus, inv.due_date))
+    .reduce((sum, inv) => sum + (inv.total - inv.amount_paid), 0)
 
-  const totaalDezeMaandBetaald = mockInvoices
-    .filter((inv) => inv.paymentDate && inv.paymentDate.slice(0, 7) === MOCK_TODAY.slice(0, 7))
-    .reduce((sum, inv) => sum + inv.amountPaid, 0)
+  const totaalDezeMaandBetaald = (invoices ?? [])
+    .filter((inv) => inv.payment_date?.slice(0, 7) === thisMonth)
+    .reduce((sum, inv) => sum + inv.amount_paid, 0)
 
   const stats = [
     { label: 'Totaal openstaand', value: formatCurrency(totaalOpenstaand), icon: Wallet, color: 'bg-blue-50 text-blue-600', border: 'border-blue-100' },
@@ -111,62 +114,87 @@ export default function InvoicesPage() {
         ))}
       </div>
 
+      {/* Loading */}
+      {isLoading && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+          {Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={i} />)}
+        </div>
+      )}
+
+      {/* Error */}
+      {!isLoading && error && (
+        <div className="text-center py-16 text-red-500">
+          <p className="text-sm font-medium">Er ging iets mis bij het laden van de facturen.</p>
+          <p className="text-xs mt-1 text-red-400">{error instanceof Error ? error.message : String(error)}</p>
+        </div>
+      )}
+
+      {/* Empty state */}
+      {!isLoading && !error && (invoices ?? []).length === 0 && (
+        <EmptyState
+          icon={<Receipt size={28} />}
+          title="Nog geen facturen"
+          description="Maak uw eerste factuur aan voor een project of klant."
+          action={{ label: 'Nieuwe factuur', onClick: () => navigate('/facturen/nieuw') }}
+        />
+      )}
+
       {/* Grid */}
-      <motion.div
-        className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4"
-        initial="hidden"
-        animate="show"
-        variants={{ hidden: {}, show: { transition: { staggerChildren: 0.06 } } }}
-      >
-        {filtered.map((invoice) => {
-          const project = getProjectById(invoice.projectId)
-          const client = getClientById(invoice.clientId)
-          const overdue = isOverdue(invoice.status, invoice.dueDate)
-          const partiallyPaid = invoice.amountPaid > 0 && invoice.amountPaid < invoice.total
-          const paidPct = invoice.total > 0 ? Math.min(100, Math.round((invoice.amountPaid / invoice.total) * 100)) : 0
+      {!isLoading && !error && filtered.length > 0 && (
+        <motion.div
+          className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4"
+          initial="hidden"
+          animate="show"
+          variants={{ hidden: {}, show: { transition: { staggerChildren: 0.06 } } }}
+        >
+          {filtered.map((invoice) => {
+            const overdue = isOverdue(invoice.status as InvoiceStatus, invoice.due_date)
+            const partiallyPaid = invoice.amount_paid > 0 && invoice.amount_paid < invoice.total
+            const paidPct = invoice.total > 0 ? Math.min(100, Math.round((invoice.amount_paid / invoice.total) * 100)) : 0
 
-          return (
-            <motion.div
-              key={invoice.id}
-              variants={{ hidden: { opacity: 0, y: 12 }, show: { opacity: 1, y: 0, transition: { duration: 0.3 } } }}
-              onClick={() => navigate(`/facturen/${invoice.id}`)}
-              className="bg-white border border-slate-100 rounded-2xl p-5 shadow-sm hover:shadow-md hover:border-slate-200 transition-all cursor-pointer group"
-            >
-              <div className="flex items-start justify-between gap-2 mb-3">
-                <div className="min-w-0">
-                  <h3 className="font-semibold text-[#0F172A] line-clamp-2 group-hover:text-[#C4943A] transition-colors">{invoice.title}</h3>
-                  <p className="text-xs text-slate-400 font-mono mt-0.5">{invoice.reference}</p>
-                </div>
-                <InvoiceStatusBadge status={invoice.status} />
-              </div>
-
-              <p className="text-sm text-slate-600 mb-1 truncate">{project?.name ?? '—'}</p>
-              <p className="text-xs text-slate-400 mb-3 truncate">{client?.name ?? '—'}</p>
-
-              {partiallyPaid && (
-                <div className="mb-3">
-                  <div className="flex items-center justify-between text-xs text-slate-500 mb-1">
-                    <span>{formatCurrency(invoice.amountPaid)} betaald</span>
-                    <span>{paidPct}%</span>
+            return (
+              <motion.div
+                key={invoice.id}
+                variants={{ hidden: { opacity: 0, y: 12 }, show: { opacity: 1, y: 0, transition: { duration: 0.3 } } }}
+                onClick={() => navigate(`/facturen/${invoice.id}`)}
+                className="bg-white border border-slate-100 rounded-2xl p-5 shadow-sm hover:shadow-md hover:border-slate-200 transition-all cursor-pointer group"
+              >
+                <div className="flex items-start justify-between gap-2 mb-3">
+                  <div className="min-w-0">
+                    <h3 className="font-semibold text-[#0F172A] line-clamp-2 group-hover:text-[#C4943A] transition-colors">{invoice.title}</h3>
+                    <p className="text-xs text-slate-400 font-mono mt-0.5">{invoice.reference}</p>
                   </div>
-                  <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
-                    <div className="h-full bg-[#C4943A] rounded-full" style={{ width: `${paidPct}%` }} />
-                  </div>
+                  <InvoiceStatusBadge status={invoice.status as InvoiceStatus} />
                 </div>
-              )}
 
-              <div className="flex items-center justify-between pt-3 border-t border-slate-50">
-                <span className="text-sm font-semibold text-[#0F172A]">{formatCurrency(invoice.total)}</span>
-                <span className={`text-xs ${overdue ? 'text-red-600 font-semibold' : 'text-slate-400'}`}>
-                  {invoice.dueDate ? `Verv. ${formatDate(invoice.dueDate)}` : '—'}
-                </span>
-              </div>
-            </motion.div>
-          )
-        })}
-      </motion.div>
+                <p className="text-sm text-slate-600 mb-1 truncate">{invoice.project?.name ?? '—'}</p>
+                <p className="text-xs text-slate-400 mb-3 truncate">{invoice.client?.name ?? '—'}</p>
 
-      {filtered.length === 0 && (
+                {partiallyPaid && (
+                  <div className="mb-3">
+                    <div className="flex items-center justify-between text-xs text-slate-500 mb-1">
+                      <span>{formatCurrency(invoice.amount_paid)} betaald</span>
+                      <span>{paidPct}%</span>
+                    </div>
+                    <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
+                      <div className="h-full bg-[#C4943A] rounded-full" style={{ width: `${paidPct}%` }} />
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex items-center justify-between pt-3 border-t border-slate-50">
+                  <span className="text-sm font-semibold text-[#0F172A]">{formatCurrency(invoice.total)}</span>
+                  <span className={`text-xs ${overdue ? 'text-red-600 font-semibold' : 'text-slate-400'}`}>
+                    {invoice.due_date ? `Verv. ${formatDate(invoice.due_date)}` : '—'}
+                  </span>
+                </div>
+              </motion.div>
+            )
+          })}
+        </motion.div>
+      )}
+
+      {!isLoading && !error && filtered.length === 0 && (invoices ?? []).length > 0 && (
         <div className="text-center py-16 text-slate-400">
           <p className="text-lg font-medium">Geen facturen gevonden</p>
           <p className="text-sm mt-1">Pas uw zoekopdracht of filters aan</p>
